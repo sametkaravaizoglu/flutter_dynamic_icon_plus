@@ -48,33 +48,15 @@ public class FlutterDynamicIconPlusPlugin: NSObject, FlutterPlugin {
             }
         case MethodNames.setApplicationIconBadgeNumber:
             let args = call.arguments as! [String: Any]
-            if #available(iOS 10.3, *){
-                if #available(iOS 10.0, *) {
-                    UNUserNotificationCenter.current().requestAuthorization(options: .badge) { granted, error in
-                        if granted {
-                            let batchIconNumber = (args[Arguments.batchIconNumber] as? NSNumber)?.intValue ?? 0
-                            UIApplication.shared.applicationIconBadgeNumber = batchIconNumber
-                            result(nil)
-                        }
-                        else {
-                            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) {
-                                (granted, error) in
-                                let batchIconNumber = (args[Arguments.batchIconNumber] as? NSNumber)?.intValue ?? 0
-                                UIApplication.shared.applicationIconBadgeNumber = batchIconNumber
-                                result(nil)
-                            }
-                        }
+            if #available(iOS 10.0, *) {
+                UNUserNotificationCenter.current().requestAuthorization(options: .badge) { granted, error in
+                    let batchIconNumber = (args[Arguments.batchIconNumber] as? NSNumber)?.intValue ?? 0
+                    DispatchQueue.main.async {
+                        UIApplication.shared.applicationIconBadgeNumber = batchIconNumber
+                        result(nil)
                     }
                 }
-                else {
-                    result(
-                        FlutterError(
-                            code: "Failed to set batch icon number",
-                            message: "Permission denied by the user",
-                            details: nil))
-                }
-            }
-            else {
+            } else {
                 let notificationSettings = UIUserNotificationSettings(types: .badge, categories: nil)
                 UIApplication.shared.registerUserNotificationSettings(notificationSettings)
                 let batchIconNumber = (args[Arguments.batchIconNumber] as? NSNumber)?.intValue ?? 0
@@ -94,6 +76,7 @@ public class FlutterDynamicIconPlusPlugin: NSObject, FlutterPlugin {
             let imp = UIApplication.shared.method(for: selector)
             let method = unsafeBitCast(imp, to: setAlternateIconName.self)
             method(UIApplication.shared, selector, appIcon as NSString?, { _ in })
+            result(nil)
         } else {
             result(nil)
         }
@@ -101,7 +84,7 @@ public class FlutterDynamicIconPlusPlugin: NSObject, FlutterPlugin {
     
     private func setIconWithAlert(_ appIcon: String?, result: @escaping FlutterResult) {
         UIApplication.shared.setAlternateIconName(appIcon) { error in
-            if let error {
+            if let error = error {
                 result(
                     FlutterError(
                         code: "Failed to set icon \(error.localizedDescription)",
